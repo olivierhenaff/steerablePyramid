@@ -3,13 +3,15 @@ import torch.nn as nn
 
 from steerableUtils import *  
 
+use_cuda = True
+device = torch.device("cuda" if use_cuda else "cpu")
 class SteerablePyramid(nn.Module):
 
     def __init__(self, imgSize, K=4, N=4, hilb=False, includeHF=True ):
         super(SteerablePyramid, self).__init__()
 
         size = [ imgSize, imgSize//2 + 1 ]
-        self.hl0 = HL0_matrix( size ).unsqueeze(0).unsqueeze(0).unsqueeze(0).cuda()
+        self.hl0 = HL0_matrix( size ).unsqueeze(0).unsqueeze(0).unsqueeze(0).to(device)
 
         self.l = []
         self.b = []
@@ -26,9 +28,9 @@ class SteerablePyramid(nn.Module):
 
         for n in range( self.N ):
 
-            l = L_matrix_cropped( size ).unsqueeze(0).unsqueeze(0).unsqueeze(0).unsqueeze(0).cuda()
-            b = B_matrix(      K, size ).unsqueeze(0).unsqueeze(0).unsqueeze(0).cuda()
-            s = S_matrix(      K, size ).unsqueeze(0).unsqueeze(0).unsqueeze(0).cuda()
+            l = L_matrix_cropped( size ).unsqueeze(0).unsqueeze(0).unsqueeze(0).unsqueeze(0).to(device)
+            b = B_matrix(      K, size ).unsqueeze(0).unsqueeze(0).unsqueeze(0).to(device)
+            s = S_matrix(      K, size ).unsqueeze(0).unsqueeze(0).unsqueeze(0).to(device)
 
             self.l.append( l.div_(4) )
             self.b.append( b )
