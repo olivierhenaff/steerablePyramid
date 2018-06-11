@@ -1,7 +1,5 @@
 import torch
-from torch.autograd import Variable
 import torch.nn as nn
-import pytorch_fft.fft.autograd as fft
 
 from steerableUtils import *  
 
@@ -11,7 +9,7 @@ class SteerablePyramid(nn.Module):
         super(SteerablePyramid, self).__init__()
 
         size = [ imgSize, imgSize//2 + 1 ]
-        self.hl0 = Variable( HL0_matrix( size ).unsqueeze(0).unsqueeze(0).unsqueeze(0).cuda() )
+        self.hl0 = HL0_matrix( size ).unsqueeze(0).unsqueeze(0).unsqueeze(0).cuda()
 
         self.l = []
         self.b = []
@@ -25,14 +23,12 @@ class SteerablePyramid(nn.Module):
         self.indF = [ freq_shift( size[0], True  ) ] 
         self.indB = [ freq_shift( size[0], False ) ] 
 
-        self.fftF =   fft.Rfft2d()
-        self.fftB = [ fft.Irfft2d() ]
 
         for n in range( self.N ):
 
-            l = Variable( L_matrix_cropped( size ).unsqueeze(0).unsqueeze(0).unsqueeze(0).unsqueeze(0).cuda() )
-            b = Variable( B_matrix(      K, size ).unsqueeze(0).unsqueeze(0).unsqueeze(0).cuda()              )
-            s = Variable( S_matrix(      K, size ).unsqueeze(0).unsqueeze(0).unsqueeze(0).cuda()              )
+            l = L_matrix_cropped( size ).unsqueeze(0).unsqueeze(0).unsqueeze(0).unsqueeze(0).cuda()
+            b = B_matrix(      K, size ).unsqueeze(0).unsqueeze(0).unsqueeze(0).cuda()
+            s = S_matrix(      K, size ).unsqueeze(0).unsqueeze(0).unsqueeze(0).cuda()
 
             self.l.append( l.div_(4) )
             self.b.append( b )
@@ -42,13 +38,13 @@ class SteerablePyramid(nn.Module):
 
             self.indF.append( freq_shift( size[0], True  ) )
             self.indB.append( freq_shift( size[0], False ) )
-            self.fftB.append( fft.Irfft2d() ) 
 
 
     def forward(self, x):
-
-        x1, x2 = self.fftF(x)
-        x = torch.cat((x1.unsqueeze(1), x2.unsqueeze(1)), 1 ).unsqueeze( -3 )
+        fftfull = torch.rfft(x,2)
+        xreal = fftfull[... , 0]
+        xim = fftfull[... ,1]
+        x = torch.cat((xreal.unsqueeze(1), xim.unsqueeze(1)), 1 ).unsqueeze( -3 )
         x = torch.index_select( x, -2, self.indF[0] )
 
         x   = self.hl0 * x 
@@ -74,7 +70,9 @@ class SteerablePyramid(nn.Module):
 
         for n in range( len( output ) ):
             output[n] = torch.index_select( output[n], -2, self.indB[n] )
-            output[n] = self.fftB[n]( output[n].select( 1, 0 ), output[n].select( 1, 1 ) )
+            sig_size = output[n].shape[-2]
+            output[n] = torch.stack((output[n].select(1,0), output[n].select(1,1)),-1)
+            output[n] = torch.irfft( output[n], 2, signal_sizes = [sig_size, sig_size])
 
         if self.includeHF:
             output.insert( 0, output[0].narrow( -3, 0, 1                    ) )
@@ -97,16 +95,13 @@ def testSteerable():
 
     imgSize = 128 
     network = SteerablePyramid( imgSize=imgSize, K=4, N=4 )
-
-    x = torch.Tensor( 1, 1, imgSize, imgSize ).fill_(0)
-    x.select( -1, imgSize//2 ).select( -1, imgSize//2 ).fill_( 1 )
-    x = x.cuda()
-    x = Variable( x, requires_grad=True ) 
+    x = torch.randn((1,1,imgSize,imgSize),requires_grad=True, device=torch.device("cuda"))    
 
     y = network( x ) 
 
-    for i in range(len(y)):
-        y[i].backward( y[i] ) 
+    for i in range(len(y)): 
+        y[i].backward( y[i], retain_graph=True)
+    
     z = x.grad
 
 
