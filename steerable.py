@@ -2,9 +2,8 @@ import torch
 import torch.nn as nn
 
 from steerableUtils import *  
+from config import *
 
-use_cuda = True
-device = torch.device("cuda" if use_cuda else "cpu")
 class SteerablePyramid(nn.Module):
 
     def __init__(self, imgSize, K=4, N=4, hilb=False, includeHF=True ):
@@ -43,6 +42,7 @@ class SteerablePyramid(nn.Module):
 
 
     def forward(self, x):
+
         fftfull = torch.rfft(x,2)
         xreal = fftfull[... , 0]
         xim = fftfull[... ,1]
@@ -97,7 +97,7 @@ def testSteerable():
 
     imgSize = 128 
     network = SteerablePyramid( imgSize=imgSize, K=4, N=4 )
-    x = torch.randn((1,1,imgSize,imgSize),requires_grad=True, device=torch.device("cuda"))    
+    x = torch.randn((1,1,imgSize,imgSize),requires_grad=True, device=device)    
 
     y = network( x ) 
 
