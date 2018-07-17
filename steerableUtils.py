@@ -1,6 +1,7 @@
 import math 
 import torch
 from torch.autograd import Variable
+from config import *
 
 def L( r ):
 	if   r <= math.pi / 4:
@@ -135,7 +136,7 @@ def L_matrix_cropped( s ):
 	return l.narrow( 0, ns[1]-1, ns[0] ).narrow( 1, 0, ns[1] ) 
 
 def freq_shift( imgSize, fwd ):
-    ind = torch.LongTensor( imgSize ).cuda()
+    ind = torch.LongTensor( imgSize ).to(device)
     sgn = 1 
     if fwd:
         sgn = -1 
