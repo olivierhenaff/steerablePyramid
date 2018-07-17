@@ -1,5 +1,4 @@
 import torch
 
-use_cuda = True
-device = torch.device("cuda" if use_cuda else "cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dtype = torch.float32
